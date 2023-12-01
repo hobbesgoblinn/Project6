@@ -1,16 +1,25 @@
 #include "Board.h"
-void Board::CopyBoard(const char toCopy[]) {
-    for (int i = 0; i < 42; i++) {
-        data[i] = toCopy[i];
+// COPYBOARD
+// Recieves another board
+// Copies contents of other board
+void Board::CopyBoard(const Board& toCopy) {
+    for (int i = 0; i < size; i++) {
+        data[i] = toCopy.data[i];
     }
 }
+// PRINT
+// Displays board
 void Board::Print() {
-    cout << "0 1 2 3 4 5 6 " << endl;
-    for (int i = 0; i < 42; i++) {
-        cout << data[i] << " ";
-        // When the board array reaches a border, endl is printed
-        if ((i % 7) == (7 - 1)) {
-            cout << endl;
+    cout << "\t0 1 2 3 4 5 6 \n";
+    for (int i = 0; i < size; i++) {
+        if ((i % width) == 0) {
+            cout << "\t";
         }
+        cout << data[i] << " ";
+        // Newline at the end of row
+        if ((i % width) == (width - 1)) {
+            cout << "\n";
+        } 
     }
+    cout << endl;
 }

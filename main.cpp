@@ -1,115 +1,107 @@
 /******************************************************************************
-This program allows two players to compete in a game of Connect Four.
+This program allows two players to compete in a game of Connect Four, with the
+added ability to undo each other's moves and display all previous moves made.
 Author: Michelle Perez
-November 17, 2023
+December 1, 2023
 System: Microsoft Visual Studio 2022
 *******************************************************************************/
 #include <iostream>
 #include <vector>
 #include "Player.h"
-#include "Board.h"
 using namespace std;
-const int BOARD_SIZE = 42;
-const int WIDTH = 7;
-const int HEIGHT = 6;
-struct player {
-    char piece;
-    player(char playPiece = '?') { piece = playPiece; }
-    vector<int> moves;
-    int latestIndex = 0;
-};
-void DisplayBoard(const char board[]);
-void PlayGame(char board[]);
-int InputMove(const char board[], player* player);
-int NextMoveIndex(const char board[], const int column);
-void MakeMove(char board[], const int column, player* player);
-bool BoardFull(const char board[]);
-bool CheckWin(const char board[], player* player);
-bool CheckBoard(const char board[], player* player);
-int SearchDirection(const char board[], int direction, int index);
+void PlayGame(Board& board);
+int InputMove(Board& board, Player*& player);
+void SwapPlayers(Player*& player, Player*& otherPlayer);
+int NextMoveIndex(const Board& board, const int column);
+int MakeMove(Board& board, const int column, Player* player);
+bool BoardFull(const Board& board);
+bool CheckWin(const Board& board, Player* player, int index);
+int SearchDirection(const Board& board, int direction, int index);
 int main()
 {
-    char board[BOARD_SIZE] =
-    {//  0   1   2   3   4   5   6  << COLUMNS
-        '-','-','-','-','-','-','-',
-        '-','-','-','-','-','-','-',
-        '-','-','-','-','-','-','-',
-        '-','-','-','-','-','r','-',
-        '-','-','-','-','-','-','-',
-        '-','-','-','-','-','-','-' };
     cout << "This is the Game Connect 4.\n"
         << "Each player should place an X or an O in the space \n"
         << "by entering the column you want to place the piece.\n"
         << "The piece will fall until it reaches the bottom or \n"
         << "the current pieces in the board. When X or O gets 4 in \n"
         << "a row (either horizontally, vertically, or diagonally, \n"
-        << "then that person wins. The user can enter Q (or q) to \n"
-        << "end the game early.\n"
+        << "then that person wins. The user can enter U (or u) to \n"
+        << "undo the last move, or Q (or q) to end the game early.\n"
         << "Let's get started!!! \n";
-    // Board is displayed and the game begins
-    Board newBoard;
-    
-    DisplayBoard(board);
+
+    Board board;
+    board.Print();
     PlayGame(board);
 
     return 0;
 }
-// DISPLAYBOARD
-// Recieves board array
-// Prints each character in the board array
-void DisplayBoard(const char board[]) {
-    cout << "0 1 2 3 4 5 6 " << endl;
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        cout << board[i] << " ";
-        // When the board array reaches a border, endl is printed
-        if ((i % WIDTH) == (WIDTH - 1)) {
-            cout << endl;
-        }
-    }
-}
 // PLAYGAME
-// Recieves board array
+// Recieves board
 // Swaps between players until 'q'/'Q' is entered, a player wins, or the  board is filled
-void PlayGame(char board[]) {
+void PlayGame(Board& board) {
     int column;
-    player playerX('X');
-    player playerO('O');
-    player* currPlayer = &playerX;
+    Player X('X');
+    Player O('O');
+    Player* currPlayer = &X;
+    Player* otherPlayer = &O;
+    int moveIndex = 0;
 
     column = InputMove(board, currPlayer);
-    // InputMove returns -1 if 'q'/'Q' is input
-    while (column > -1) {
-        MakeMove(board, column, currPlayer);
-        DisplayBoard(board);
-        // Breaks out of loop if a player wins or the board is filled
-        if (CheckWin(board, currPlayer)) { break; }
-        if (BoardFull(board)) { break; }
-        // Switching player
-        currPlayer = (currPlayer->piece == 'X') ? &playerO : &playerX;
+    // InputMove returns either a valid column, 
+    // or -3 if 'Q' is input, -2 for 'U', and -1 for 'P'
+    while (column > -3) {
+        if (column > -1) {
+            moveIndex = MakeMove(board, column, currPlayer);
+            // Exits if player won or board is full
+            if (CheckWin(board, currPlayer, moveIndex) || BoardFull(board)) { break; }
+            SwapPlayers(currPlayer, otherPlayer);
+        }
+        else if (column == -1) {
+            X.PrintAllMoves(O);
+        }
+        else {
+            if (currPlayer->UndoMove(board, otherPlayer)) {
+                SwapPlayers(currPlayer, otherPlayer);
+            }
+        }
         column = InputMove(board, currPlayer);
     }
 }
+// SWAPPLAYERS
+// Recieves pointers to current player and other player
+// Swaps their addresses
+void SwapPlayers(Player*& player, Player*& otherPlayer) {
+    Player* temp = player;
+    player = otherPlayer;
+    otherPlayer = temp;
+}
 // INPUTMOVE
-// Recieves board array and current player
-// Returns integer: column number, or -1 if player quits game
-// This function allows the user to input a char, and checks its validity. 
-// Keeps prompting for input until it is valid or player quits game.
-int InputMove(const char board[], player* player) {
+// Recieves board and current player
+// Prompts for input until a valid column is entered or player enters 'Q', 'U', or 'P'.
+// Returns integer: valid column, or negative number depending on choice:
+// -3 if 'Q', -2 if 'U', or -1 if 'P'
+int InputMove(Board& board, Player*& player) {
     char input;
     int column;
 
-    cout << "It is " << player->piece << "'s turn.\n"
+    cout << "It is " << player->GetPiece() << "'s turn.\n"
         << "Enter a column to place your piece. \n";
     cin >> input;
 
     while (toupper(input) != 'Q') {
-        // If input is a valid column
-        if ((input >= '0') && (input < (WIDTH + '0'))) {
-            column = input - '0';
+        // Print
+        if (toupper(input) == 'P') {
+            return -1;
+        }
+        // Undo
+        if (toupper(input) == 'U') {
+            return -2;
+        }
+        // Valid column
+        if ((atoi(&input) >= 0) && (atoi(&input) < board.width)) {
+            column = atoi(&input);
 
-            if (board[column] == '-') {
-                // Add column to moves vector if column is not full
-                player->moves.push_back(column);
+            if (board.data[column] == '-') {
                 return column;
             }
             cout << "column chosen is already full\n";
@@ -120,120 +112,100 @@ int InputMove(const char board[], player* player) {
         cin >> input;
     }
     cout << "Ending Game\n";
-    return -1;
+    return -3;
 }
 // NEXTMOVEINDEX
-// Recieves board array and column
-// Returns index of next move
-int NextMoveIndex(const char board[], const int column) {
+// Recieves board and column
+// Returns index of lowest available spot in column
+int NextMoveIndex(const Board& board, const int column) {
     int currIndex;
     int moveIndex = -1;
 
-    for (int i = 0; i < HEIGHT; i++) {
-        // Checks column at row i
-        currIndex = column + (i * WIDTH);
-        if (board[currIndex] == '-') {
+    for (int i = 0; i < board.width; i++) {
+        // Checks if column is empty at row i
+        currIndex = column + (i * board.width);
+        if (board.data[currIndex] == '-') {
             moveIndex = currIndex;
         }
-        // Breaks if spot is filled
         else { break; }
     }
-
     return moveIndex;
 }
 // MAKEMOVE
-// Recieves board array, column, and player
-// Finds index of move and uses it to update the board and the player's move board
-void MakeMove(char board[], const int column, player* player) {
-    int index;
-    if (column >= 0) {
-        index = NextMoveIndex(board, column);
-        board[index] = player->piece;
-        player->latestIndex = index;
-    }
+// Recieves board, column, and player
+// Updates board and player's move list, then prints board
+// Returns index of move to check for win later
+int MakeMove(Board& board, const int column, Player* player) {
+    int index = -1;
+    index = NextMoveIndex(board, column);
+    board.data[index] = player->GetPiece();
+    player->AddMove(board);
+    board.Print();
+    return index;
 }
 // BOARDFULL
-// Recieves board array
-// Returns full if the uppermost row is full
-bool BoardFull(const char board[]) {
-    bool full = true;
-    for (int i = 0; i < WIDTH; i++) {
-        // Checks if any of the spots in the top row are open
-        if (board[i] == '-') {
-            full = false;
+// Recieves board
+// Returns true if the uppermost row is full
+bool BoardFull(const Board& board) {
+    for (int i = 0; i < board.width; i++) {
+        // Returns false if any of the spots in the top row are open
+        if (board.data[i] == '-') {
+            return false;
         }
     }
-    if (full) {
-        cout << "Board is Full, It's a Draw!!!\n";
-    }
-    return full;
+    cout << "Board is Full, It's a Draw!!!\n";
+    return true;
 }
 // CHECKWIN
-// Recieves board array and player
-// Checks whether player has won, returns bool
-bool CheckWin(const char board[], player* player) {
-    bool win = false;
-    // Checks board if player has input enough moves
-    if (player->moves.size() >= 4) {
-        win = CheckBoard(board, player);
-    }
-    if (win) {
-        cout << "Game is Over, Player " << player->piece << " got 4 in a row!!!!\n";
-    }
-    return win;
-}
-// CHECKBOARD
-// Recieves board array and player, returns bool
-// Searches each direction starting from last piece placed for the number of matching pieces
-// and then checks whether there are 4 in a row
-bool CheckBoard(const char board[], player* player) {
-    const int xMvmt[8] = { -1, -1, 0, 1, 1, 1, 0, -1 };
-    const int yMvmt[8] = { 0, -WIDTH, -WIDTH, -WIDTH, 0, WIDTH, WIDTH, WIDTH };
+// Recieves board, current player, and index of last move
+// Searches each direction starting from last move for the number of matches
+// Checks whether there are 4 in a row in any orientation
+bool CheckWin(const Board& board, Player* player, int index) {
+    int width = board.width;
+    // L horizontal, L up diagonal, up vertical, R up diagonal
+    // R horizontal, R down diagonal, down vertical, L down diagonal
+    const int direction[8] = {-1, -width - 1, -width, -width + 1, 1, width + 1, width, width - 1};
     int count[8];
-    int moveDir;
     // Count starts at one to include current piece
     int horizontal = 1, vertical = 1, rDiag = 1, lDiag = 1;
 
     for (int i = 0; i < 8; i++) {
-        // Amount to add to current index to get next index in direction i
-        moveDir = xMvmt[i] + yMvmt[i];
         // Gets count of matching pieces in direction i
-        count[i] = SearchDirection(board, moveDir, player->latestIndex);
+        count[i] = SearchDirection(board, direction[i], index);
     }
+
     horizontal += count[0] + count[4];
+    // lDiag: Upper left to lower right
     lDiag += count[1] + count[5];
     vertical += count[2] + count[6];
+    // rDiag: Upper right to lower left
     rDiag += count[3] + count[7];
-    // If there is a line of 4 in any orientation, returns true
+
     if ((horizontal >= 4) || (vertical >= 4) || (lDiag >= 4) || (rDiag >= 4)) {
+        cout << "Game is Over, Player " << player->GetPiece() << " got 4 in a row!!!!\n";
         return true;
     }
 
     return false;
-
 }
 // SEARCHDIRECTION
-// Recieves board array, direction, and index
-// Returns count
-// Counts the number of matching pieces in a particular direction
-int SearchDirection(const char board[], int direction, int index) {
+// Recieves board, direction, and index
+// Returns the count of matching pieces in the direction
+int SearchDirection(const Board& board, int direction, int index) {
     int nextIndex = index + direction;
-    int col = index % WIDTH;
-    int nextCol = nextIndex % WIDTH;
+    int col = index % board.width;
+    int nextCol = nextIndex % board.width;
 
     // If next index is off board or not in a contiguous column, return 0
-    if ((nextIndex >= BOARD_SIZE) || (nextIndex < 0) || (abs(col - nextCol) > 1)) {
+    if ((nextIndex >= board.size) || (nextIndex < 0) || (abs(col - nextCol) > 1)) {
         return 0;
     }
-
     // If next index doesn't match, return 0
-    if (board[index] != board[nextIndex]) {
+    if (board.data[index] != board.data[nextIndex]) {
         return 0;
     }
     else {
-        // Recursively calls itself, adding 1 for each new match
+        // Recursively adds 1 for each new match
         return 1 + SearchDirection(board, direction, nextIndex);
     }
 }
-
-

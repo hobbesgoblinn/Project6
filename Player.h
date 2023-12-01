@@ -1,20 +1,17 @@
 #pragma once
 #include<vector>
-#include "Board.h"
+#include "MoveList.h"
 class Player{
 public:
-	struct move {
-		Board board;
-		move* next = nullptr;
-	};
 	Player(char piece = '?');
-	~Player();
-	void PrintMoves();
-	void CopyBoard(const char board[]);
-	void AddMove(const char board[]);
+	char GetPiece() { return piece; }
+	int GetNumMoves() { return moves.GetNumMoves(); }
+	Move* GetMoveListHead() { return moves.GetMoveListHead(); }
+	Move* GetLatestMove() { return moves.GetLatestMove(); }
+	void AddMove(const Board& board) { moves.AddMove(board); }
+	bool UndoMove(Board& board, Player*& toUndo);
+	void PrintAllMoves(Player& secondPlayer);
 private:
 	char piece;
-	move* moveListHead;
-	move* latestMove;
+	MoveList moves;
 };
-

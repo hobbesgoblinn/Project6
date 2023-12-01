@@ -12,7 +12,6 @@ using namespace std;
 void PlayGame(Board& board);
 int InputMove(Board& board, Player*& player);
 void SwapPlayers(Player*& player, Player*& otherPlayer);
-int NextMoveIndex(const Board& board, const int column);
 int MakeMove(Board& board, const int column, Player* player);
 bool BoardFull(const Board& board);
 bool CheckWin(const Board& board, Player* player, int index);
@@ -68,8 +67,7 @@ void PlayGame(Board& board) {
     }
 }
 // SWAPPLAYERS
-// Recieves pointers to current player and other player
-// Swaps their addresses
+// Recieves pointers to players and swaps addresses
 void SwapPlayers(Player*& player, Player*& otherPlayer) {
     Player* temp = player;
     player = otherPlayer;
@@ -114,34 +112,26 @@ int InputMove(Board& board, Player*& player) {
     cout << "Ending Game\n";
     return -3;
 }
-// NEXTMOVEINDEX
-// Recieves board and column
-// Returns index of lowest available spot in column
-int NextMoveIndex(const Board& board, const int column) {
+// MAKEMOVE
+// Recieves board, column, and player
+// Updates board and player's move list, then prints board
+// Returns index of move to check for win later
+int MakeMove(Board& board, const int column, Player* player) {
+    int moveIndex = column;
     int currIndex;
-    int moveIndex = -1;
 
-    for (int i = 0; i < board.width; i++) {
-        // Checks if column is empty at row i
+    for (int i = 0; i < board.height; i++) {
+        // Finds lowest available spot
         currIndex = column + (i * board.width);
         if (board.data[currIndex] == '-') {
             moveIndex = currIndex;
         }
         else { break; }
     }
-    return moveIndex;
-}
-// MAKEMOVE
-// Recieves board, column, and player
-// Updates board and player's move list, then prints board
-// Returns index of move to check for win later
-int MakeMove(Board& board, const int column, Player* player) {
-    int index = -1;
-    index = NextMoveIndex(board, column);
-    board.data[index] = player->GetPiece();
+    board.data[moveIndex] = player->GetPiece();
     player->AddMove(board);
     board.Print();
-    return index;
+    return moveIndex;
 }
 // BOARDFULL
 // Recieves board
